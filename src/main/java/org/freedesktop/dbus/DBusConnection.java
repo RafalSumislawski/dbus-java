@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 import org.freedesktop.DBus;
 import org.freedesktop.dbus.exceptions.DBusException;
@@ -47,129 +48,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class DBusConnection extends AbstractConnection implements Closeable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    /**
-     * Add addresses of peers to a set which will watch for them to
-     * disappear and automatically remove them from the set.
-     */
-    public class PeerSet implements Set<String>, DBusSigHandler<DBus.NameOwnerChanged> {
-        private Set<String> addresses;
-
-        public PeerSet() {
-            addresses = new TreeSet<String>();
-            try {
-                addSigHandler(new DBusMatchRule(DBus.NameOwnerChanged.class, null, null), this);
-            } catch (DBusException dbe) {
-                if (EXCEPTION_DEBUG) {
-                    logger.error("", dbe);
-                }
-            }
-        }
-
-        @Override
-        public void handle(DBus.NameOwnerChanged noc) {
-            logger.debug("Received NameOwnerChanged(" + noc.name + "," + noc.oldOwner + "," + noc.newOwner + ")");
-            if ("".equals(noc.newOwner) && addresses.contains(noc.name)) {
-                remove(noc.name);
-            }
-        }
-
-        @Override
-        public boolean add(String address) {
-            logger.debug("Adding " + address);
-            synchronized (addresses) {
-                return addresses.add(address);
-            }
-        }
-
-        @Override
-        public boolean addAll(Collection<? extends String> _addresses) {
-            synchronized (this.addresses) {
-                return this.addresses.addAll(_addresses);
-            }
-        }
-
-        @Override
-        public void clear() {
-            synchronized (addresses) {
-                addresses.clear();
-            }
-        }
-
-        @Override
-        public boolean contains(Object o) {
-            return addresses.contains(o);
-        }
-
-        @Override
-        public boolean containsAll(Collection<?> os) {
-            return addresses.containsAll(os);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o instanceof PeerSet) {
-                return ((PeerSet) o).addresses.equals(addresses);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public int hashCode() {
-            return addresses.hashCode();
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return addresses.isEmpty();
-        }
-
-        @Override
-        public Iterator<String> iterator() {
-            return addresses.iterator();
-        }
-
-        @Override
-        public boolean remove(Object o) {
-            logger.debug("Removing " + o);
-            synchronized (addresses) {
-                return addresses.remove(o);
-            }
-        }
-
-        @Override
-        public boolean removeAll(Collection<?> os) {
-            synchronized (addresses) {
-                return addresses.removeAll(os);
-            }
-        }
-
-        @Override
-        public boolean retainAll(Collection<?> os) {
-            synchronized (addresses) {
-                return addresses.retainAll(os);
-            }
-        }
-
-        @Override
-        public int size() {
-            return addresses.size();
-        }
-
-        @Override
-        public Object[] toArray() {
-            synchronized (addresses) {
-                return addresses.toArray();
-            }
-        }
-
-        @Override
-        public <T> T[] toArray(T[] a) {
-            synchronized (addresses) {
-                return addresses.toArray(a);
-            }
-        }
-    }
 
     private class SigHandler implements DBusSigHandler<DBusSignal> {
         @Override
@@ -177,29 +55,25 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
             if (s instanceof org.freedesktop.DBus.Local.Disconnected) {
                 logger.debug("Handling Disconnected signal from bus");
                 try {
-                    Error err = new Error("org.freedesktop.DBus.Local", "org.freedesktop.DBus.Local.Disconnected", 0, "s", new Object[] {
-                            t("Disconnected")
-                    });
-                    if (null != pendingCalls) {
-                        synchronized (pendingCalls) {
-                            long[] set = pendingCalls.getKeys();
-                            for (long l : set) {
-                                if (-1 != l) {
-                                    MethodCall m = pendingCalls.remove(l);
-                                    if (null != m) {
-                                        m.setReply(err);
-                                    }
+                    Error err = new Error("org.freedesktop.DBus.Local", "org.freedesktop.DBus.Local.Disconnected", 0, "s", t("Disconnected"));
+                    synchronized (pendingCalls) {
+                        long[] set = pendingCalls.getKeys();
+                        for (long l : set) {
+                            if (-1 != l) {
+                                MethodCall m = pendingCalls.remove(l);
+                                if (null != m) {
+                                    m.setReply(err);
                                 }
                             }
                         }
                     }
-                    synchronized (pendingErrors) {
-                        pendingErrors.add(err);
-                    }
+                    pendingErrors.offer(err);
                 } catch (DBusException exDb) {
                 }
             } else if (s instanceof org.freedesktop.DBus.NameAcquired) {
-                busnames.add(((org.freedesktop.DBus.NameAcquired) s).name);
+                synchronized(busnames) {
+                    busnames.add(((org.freedesktop.DBus.NameAcquired) s).name);
+                }
             }
         }
     }
@@ -215,11 +89,11 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
 
     public static final String                       DEFAULT_SYSTEM_BUS_ADDRESS = "unix:path=/var/run/dbus/system_bus_socket";
 
-    private List<String>                             busnames;
+    private final List<String>                       busnames;
 
     private static final Map<Object, DBusConnection> CONN                       = new HashMap<Object, DBusConnection>();
-    private int                                      refcount                  = 0;
-    private Object                                   reflock                   = new Object();
+    private int                                      refcount                   = 0;
+    private final Object                             reflock                    = new Object();
     private DBus                                     dbus;
 
     /**
@@ -360,18 +234,12 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
         try {
             transport = new Transport(addr, AbstractConnection.TIMEOUT);
             connected = true;
-        } catch (IOException ioe) {
+        } catch (IOException | ParseException ioe) {
             if (EXCEPTION_DEBUG) {
                 logger.error("", ioe);
             }
             disconnect();
             throw new DBusException(t("Failed to connect to bus ") + ioe.getMessage());
-        } catch (ParseException exP) {
-            if (EXCEPTION_DEBUG) {
-                logger.error("", exP);
-            }
-            disconnect();
-            throw new DBusException(t("Failed to connect to bus ") + exP.getMessage());
         }
 
         // start listening for calls
@@ -386,7 +254,10 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
         if (registerSelf) {
             dbus = getRemoteObject("org.freedesktop.DBus", "/org/freedesktop/DBus", DBus.class);
             try {
-                busnames.add(dbus.Hello());
+                String hello = dbus.Hello();
+                synchronized (busnames) {
+                    busnames.add(hello);
+                }
             } catch (DBusExecutionException dbee) {
                 if (EXCEPTION_DEBUG) {
                     logger.error("", dbee);
@@ -444,9 +315,7 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
             if (EXCEPTION_DEBUG) {
                 logger.error("", e);
             }
-            throw new DBusException(MessageFormat.format(t("Failed to create proxy object for {0} exported by {1}. Reason: {2}"), new Object[] {
-                    path, source, e.getMessage()
-            }));
+            throw new DBusException(MessageFormat.format(t("Failed to create proxy object for {0} exported by {1}. Reason: {2}"), path, source, e.getMessage()));
         }
     }
 
@@ -534,7 +403,9 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
     * @return unique name
     */
     public String getUniqueName() {
-        return busnames.get(0);
+        synchronized (busnames) {
+            return busnames.get(0);
+        }
     }
 
     /**
@@ -542,9 +413,9 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
     * @return connection names
     */
     public String[] getNames() {
-        Set<String> names = new TreeSet<String>();
-        names.addAll(busnames);
-        return names.toArray(new String[0]);
+        synchronized (busnames) {
+            return new TreeSet<>(busnames).toArray(new String[0]);
+        }
     }
 
     public <I extends DBusInterface> I getPeerRemoteObject(String busname, String objectpath, Class<I> type) throws DBusException {
@@ -875,17 +746,7 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
             }
             throw new DBusException(dbee.getMessage());
         }
-        SignalTuple key = new SignalTuple(rule.getInterface(), rule.getMember(), rule.getObject(), rule.getSource());
-        synchronized (handledSignals) {
-            Vector<DBusSigHandler<? extends DBusSignal>> v = handledSignals.get(key);
-            if (null == v) {
-                v = new Vector<DBusSigHandler<? extends DBusSignal>>();
-                v.add(handler);
-                handledSignals.put(key, v);
-            } else {
-                v.add(handler);
-            }
-        }
+        super.addSigHandler(rule, handler);
     }
 
     /**
@@ -901,9 +762,7 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
                     logger.debug("Disconnecting DBusConnection");
                     // Set all pending messages to have an error.
                     try {
-                        Error err = new Error("org.freedesktop.DBus.Local", "org.freedesktop.DBus.Local.Disconnected", 0, "s", new Object[] {
-                                t("Disconnected")
-                        });
+                        Error err = new Error("org.freedesktop.DBus.Local", "org.freedesktop.DBus.Local.Disconnected", 0, "s", t("Disconnected"));
                         synchronized (pendingCalls) {
                             long[] set = pendingCalls.getKeys();
                             for (long l : set) {
@@ -914,11 +773,8 @@ public final class DBusConnection extends AbstractConnection implements Closeabl
                                     }
                                 }
                             }
-                            pendingCalls = null;
                         }
-                        synchronized (pendingErrors) {
-                            pendingErrors.add(err);
-                        }
+                        pendingErrors.offer(err);
                     } catch (DBusException dbe) {
                     }
 

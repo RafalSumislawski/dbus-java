@@ -23,7 +23,7 @@ import cx.ath.matthew.utils.Hexdump;
 
 public class MethodCall extends Message {
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Logger logger = LoggerFactory.getLogger(MethodCall.class);
 
     MethodCall() {
     }

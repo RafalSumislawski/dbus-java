@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.types.DBusListType;
@@ -40,7 +41,7 @@ import org.slf4j.LoggerFactory;
 public final class Marshalling {
     private static final Logger LOGGER = LoggerFactory.getLogger(Marshalling.class);
 
-    private static Map<Type, String[]> typeCache = new HashMap<Type, String[]>();
+    private static Map<Type, String[]> typeCache = new ConcurrentHashMap<>();
 
     private Marshalling() {
 
@@ -55,7 +56,7 @@ public final class Marshalling {
     * @throws DBusException If the given type cannot be converted to a DBus type.
     */
     public static String getDBusType(Type[] c) throws DBusException {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         for (Type t : c) {
             for (String s : getDBusType(t)) {
                 sb.append(s);

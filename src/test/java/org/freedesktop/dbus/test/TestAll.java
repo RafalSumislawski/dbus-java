@@ -699,11 +699,7 @@ public class TestAll {
             }
             System.out.println("Got Introspection Data: \n" + data);
 
-            // setup bus name set
-            Set<String> peers = serverconn.new PeerSet();
-            peers.add("org.freedesktop.DBus");
             clientconn.requestBusName("test.testclient");
-            peers.add("test.testclient");
             clientconn.releaseBusName("test.testclient");
 
             System.out.println("Pinging ourselves");
@@ -1016,14 +1012,6 @@ public class TestAll {
 
             /** Pause while we wait for the DBus messages to go back and forth. */
             Thread.sleep(1000);
-
-            // check that bus name set has been trimmed
-            if (peers.size() != 1) {
-                fail("peers hasn't been trimmed");
-            }
-            if (!peers.contains("org.freedesktop.DBus")) {
-                fail("peers contains the wrong name");
-            }
 
             System.out.println("Checking for outstanding errors");
             DBusExecutionException dbee = serverconn.getError();

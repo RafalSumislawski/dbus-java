@@ -133,7 +133,7 @@ class RemoteInvocationHandler implements InvocationHandler {
             }
             throw new DBusExecutionException(t("Failed to construct outgoing method call: ") + dbe.getMessage());
         }
-        if (null == conn.outgoing) {
+        if (!conn.connected) {
             throw new NotConnected(t("Not Connected"));
         }
 
@@ -145,7 +145,7 @@ class RemoteInvocationHandler implements InvocationHandler {
             synchronized (conn.pendingCallbacks) {
                 LOGGER.trace("Queueing Callback " + callback + " for " + call);
                 conn.pendingCallbacks.put(call, callback);
-                conn.pendingCallbackReplys.put(call, new DBusAsyncReply<>(call, m, conn));
+                conn.pendingCallbackReplays.put(call, new DBusAsyncReply<>(call, m, conn));
             }
             conn.queueOutgoing(call);
             return null;

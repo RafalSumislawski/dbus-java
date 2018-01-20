@@ -252,21 +252,6 @@ public class DirectConnection extends AbstractConnection {
     }
 
     @Override
-    protected <T extends DBusSignal> void addSigHandler(DBusMatchRule rule, DBusSigHandler<T> handler) throws DBusException {
-        SignalTuple key = new SignalTuple(rule.getInterface(), rule.getMember(), rule.getObject(), rule.getSource());
-        synchronized (handledSignals) {
-            Vector<DBusSigHandler<? extends DBusSignal>> v = handledSignals.get(key);
-            if (null == v) {
-                v = new Vector<DBusSigHandler<? extends DBusSignal>>();
-                v.add(handler);
-                handledSignals.put(key, v);
-            } else {
-                v.add(handler);
-            }
-        }
-    }
-
-    @Override
     DBusInterface getExportedObject(String source, String path) throws DBusException {
         return getExportedObject(path);
     }

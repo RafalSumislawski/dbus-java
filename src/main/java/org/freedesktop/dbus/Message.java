@@ -960,7 +960,7 @@ public class Message {
             if (length > AbstractConnection.MAX_ARRAY_LENGTH) {
                 throw new MarshallingException(t("Arrays must not exceed ") + AbstractConnection.MAX_ARRAY_LENGTH);
             }
-            // optimise primatives
+            // optimise primitives
             switch (sigb[ofs[0]]) {
             case ArgumentType.BYTE:
                 rv = new byte[length];

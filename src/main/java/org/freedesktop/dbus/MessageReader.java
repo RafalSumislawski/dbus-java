@@ -172,9 +172,7 @@ public class MessageReader {
             m = new Error();
             break;
         default:
-            throw new MessageTypeException(MessageFormat.format(t("Message type {0} unsupported"), new Object[] {
-                    type
-            }));
+            throw new MessageTypeException(MessageFormat.format(t("Message type {0} unsupported"), type));
         }
         if (logger.isTraceEnabled()) {
             logger.trace(Hexdump.format(buf));
@@ -184,7 +182,7 @@ public class MessageReader {
         }
         try {
             m.populate(buf, header, body);
-        } catch (DBusException dbe) {
+        } catch (DBusException | RuntimeException dbe) {
             if (AbstractConnection.EXCEPTION_DEBUG) {
                 logger.error("", dbe);
             }
@@ -193,15 +191,6 @@ public class MessageReader {
             body = null;
             header = null;
             throw dbe;
-        } catch (RuntimeException exRe) {
-            if (AbstractConnection.EXCEPTION_DEBUG) {
-                logger.error("", exRe);
-            }
-            buf = null;
-            tbuf = null;
-            body = null;
-            header = null;
-            throw exRe;
         }
         logger.debug("=> " + m);
         buf = null;
