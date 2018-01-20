@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * Error messages which can be sent over the bus.
  */
 public class Error extends Message {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Logger logger = LoggerFactory.getLogger(Error.class);
 
     Error() {
     }

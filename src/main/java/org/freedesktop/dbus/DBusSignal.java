@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.freedesktop.dbus.exceptions.DBusException;
 import org.freedesktop.dbus.exceptions.MessageFormatException;
@@ -99,11 +100,11 @@ public class DBusSignal extends Message {
     }
     // CHECKSTYLE:ON
 
-    private static Map<Class<? extends DBusSignal>, Type[]>                            typeCache  = new HashMap<Class<? extends DBusSignal>, Type[]>();
-    private static Map<String, Class<? extends DBusSignal>>                            classCache = new HashMap<String, Class<? extends DBusSignal>>();
-    private static Map<Class<? extends DBusSignal>, Constructor<? extends DBusSignal>> conCache   = new HashMap<Class<? extends DBusSignal>, Constructor<? extends DBusSignal>>();
-    private static Map<String, String>                                                 signames   = new HashMap<String, String>();
-    private static Map<String, String>                                                 intnames   = new HashMap<String, String>();
+    private static Map<Class<? extends DBusSignal>, Type[]>                            typeCache  = new ConcurrentHashMap<>();
+    private static Map<String, Class<? extends DBusSignal>>                            classCache = new ConcurrentHashMap<>();
+    private static Map<Class<? extends DBusSignal>, Constructor<? extends DBusSignal>> conCache   = new ConcurrentHashMap<>();
+    private static Map<String, String>                                                 signames   = new ConcurrentHashMap<>();
+    private static Map<String, String>                                                 intnames   = new ConcurrentHashMap<>();
     private Class<? extends DBusSignal>                                                c;
     private boolean                                                                    bodydone   = false;
     private byte[]                                                                     blen;

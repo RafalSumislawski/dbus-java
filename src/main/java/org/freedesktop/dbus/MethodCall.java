@@ -119,7 +119,7 @@ public class MethodCall extends Message {
     }
 
     // CHECKSTYLE:OFF
-    Message reply = null;
+    private Message reply = null;
     // CHECKSTYLE:ON
 
     public synchronized boolean hasReply() {

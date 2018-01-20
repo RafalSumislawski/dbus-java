@@ -15,13 +15,14 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class is the super class of both Structs and Tuples
  * and holds common methods.
  */
 abstract class Container {
-    private static Map<Type, Type[]> typecache = new HashMap<Type, Type[]>();
+    private static Map<Type, Type[]> typecache = new ConcurrentHashMap<>();
 
     static void putTypeCache(Type k, Type[] v) {
         typecache.put(k, v);

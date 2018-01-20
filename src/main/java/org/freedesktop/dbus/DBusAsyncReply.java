@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DBusAsyncReply<ReturnType> {
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Logger logger = LoggerFactory.getLogger(DBusAsyncReply.class);
 
     /**
     * Check if any of a set of asynchronous calls have had a reply.
@@ -46,11 +46,11 @@ public class DBusAsyncReply<ReturnType> {
         return c;
     }
 
-    private ReturnType             rval  = null;
-    private DBusExecutionException error = null;
-    private MethodCall             mc;
-    private Method                 me;
-    private AbstractConnection     conn;
+    private ReturnType                   rval  = null;
+    private DBusExecutionException       error = null;
+    private final MethodCall             mc;
+    private final Method                 me;
+    private final AbstractConnection     conn;
 
     DBusAsyncReply(MethodCall _mc, Method _me, AbstractConnection _conn) {
         this.mc = _mc;
@@ -83,7 +83,7 @@ public class DBusAsyncReply<ReturnType> {
     * Check if we've had a reply.
     * @return True if we have a reply
     */
-    public boolean hasReply() {
+    public synchronized boolean hasReply() {
         if (null != rval || null != error) {
             return true;
         }
@@ -97,7 +97,7 @@ public class DBusAsyncReply<ReturnType> {
     * @throws DBusExecutionException if the reply to the method was an error.
     * @throws NoReply if the method hasn't had a reply yet
     */
-    public ReturnType getReply() throws DBusExecutionException {
+    public synchronized ReturnType getReply() throws DBusExecutionException {
         if (null != rval) {
             return rval;
         } else if (null != error) {

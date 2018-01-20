@@ -121,23 +121,21 @@ public class Message {
     }
 
     /** Keep a static reference to each size of padding array to prevent allocation. */
-    private static byte[][] padding;
-    static {
-        padding = new byte[][] {
-                null, new byte[1], new byte[2], new byte[3], new byte[4], new byte[5], new byte[6], new byte[7]
+    private static byte[][] padding = new byte[][] {
+            null, new byte[1], new byte[2], new byte[3], new byte[4], new byte[5], new byte[6], new byte[7]
         };
-    }
+
     /** Steps to increment the buffer array. */
     private static final int    BUFFERINCREMENT = 20;
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+    private static final Logger logger = LoggerFactory.getLogger(Message.class);
 
 
     // CHECKSTYLE:OFF
     protected byte[][]          wiredata;
     protected long              bytecounter;
     protected Map<Byte, Object> headers;
-    protected static long       globalserial    = 0;
+    protected static long       globalserial    = 0; // TODO AtomicLong
     protected long              serial;
     protected byte              type;
     protected byte              flags;

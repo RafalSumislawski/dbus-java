@@ -84,14 +84,14 @@ public class MethodReturn extends Message {
     }
 
     // CHECKSTYLE:OFF
-    MethodCall call;
+    private MethodCall call;
     // CHECKSTYLE:ON
 
-    public MethodCall getCall() {
+    public synchronized MethodCall getCall() {
         return call;
     }
 
-    protected void setCall(MethodCall _call) {
+    protected synchronized void setCall(MethodCall _call) {
         this.call = _call;
     }
 }
