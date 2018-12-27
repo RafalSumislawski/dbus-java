@@ -20,6 +20,7 @@ import java.text.MessageFormat;
 import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.freedesktop.DBus;
@@ -167,7 +168,7 @@ public abstract class AbstractConnection {
         private final Logger logger = LoggerFactory.getLogger(getClass());
 
         SenderThread() {
-            setName("Sender");
+            setName("DBusSender");
         }
 
         @Override
@@ -244,7 +245,13 @@ public abstract class AbstractConnection {
         pendingCallbacks = new HashMap<>();
         pendingCallbackReplays = new HashMap<>();
         pendingErrors = new ConcurrentLinkedQueue<>();
-        workers = new ThreadPoolExecutor(THREADCOUNT, THREADCOUNT, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        workers = new ThreadPoolExecutor(THREADCOUNT, THREADCOUNT, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
+            private final AtomicInteger threadNumber = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(null, r,"DBusWorker-" + threadNumber.incrementAndGet());
+            }
+        });
         objectTree = new ObjectTree();
         fallbackcontainer = new FallbackContainer();
         run = true;
