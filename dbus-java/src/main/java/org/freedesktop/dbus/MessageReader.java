@@ -47,12 +47,10 @@ public class MessageReader implements Closeable {
             buf = new byte[12];
             len[0] = 0;
         }
-        if (len[0] < 12) {
+        while (len[0] < 12) {
             try {
                 rv = inputStream.read(buf, len[0], 12 - len[0]);
-            } catch (SocketTimeoutException exSt) {
-                return null;
-            } catch (EOFException _ex) {
+            } catch (SocketTimeoutException | EOFException exSt) {
                 return null;
             } catch (IOException _ex) {
                 throw _ex;
@@ -61,13 +59,6 @@ public class MessageReader implements Closeable {
                 throw new EOFException("Underlying transport returned EOF (1)");
             }
             len[0] += rv;
-        }
-        if (len[0] == 0) {
-            return null;
-        }
-        if (len[0] < 12) {
-            logger.debug("Only got {} of 12 bytes of header", len[0]);
-            return null;
         }
 
         /* Parse the details from the header */
@@ -84,7 +75,7 @@ public class MessageReader implements Closeable {
             tbuf = new byte[4];
             len[1] = 0;
         }
-        if (len[1] < 4) {
+        while (len[1] < 4) {
             try {
                 rv = inputStream.read(tbuf, len[1], 4 - len[1]);
             } catch (SocketTimeoutException exSt) {
@@ -94,10 +85,6 @@ public class MessageReader implements Closeable {
                 throw new EOFException("Underlying transport returned EOF (2)");
             }
             len[1] += rv;
-        }
-        if (len[1] < 4) {
-            logger.debug("Only got {} of 4 bytes of header", len[1]);
-            return null;
         }
 
         /* Parse the variable header length */
@@ -117,7 +104,7 @@ public class MessageReader implements Closeable {
             System.arraycopy(tbuf, 0, header, 0, 4);
             len[2] = 0;
         }
-        if (len[2] < headerlen) {
+        while (len[2] < headerlen) {
             try {
                 rv = inputStream.read(header, 8 + len[2], headerlen - len[2]);
             } catch (SocketTimeoutException exSt) {
@@ -127,10 +114,6 @@ public class MessageReader implements Closeable {
                 throw new EOFException("Underlying transport returned EOF (3)");
             }
             len[2] += rv;
-        }
-        if (len[2] < headerlen) {
-            logger.debug("Only got {} of {} bytes of header", len[2], headerlen);
-            return null;
         }
 
         /* Read the body */
@@ -142,7 +125,7 @@ public class MessageReader implements Closeable {
             body = new byte[bodylen];
             len[3] = 0;
         }
-        if (len[3] < body.length) {
+        while (len[3] < body.length) {
             try {
                 rv = inputStream.read(body, len[3], body.length - len[3]);
             } catch (SocketTimeoutException exSt) {
@@ -153,29 +136,19 @@ public class MessageReader implements Closeable {
             }
             len[3] += rv;
         }
-        if (len[3] < body.length) {
-            logger.debug("Only got {} of {} bytes of body", len[3], body.length);
-            return null;
-        }
 
         Message m;
         try {
             m = MessageFactory.createMessage(type, buf, header, body);
-        } catch (DBusException dbe) {
+        } catch (DBusException | RuntimeException dbe) {
             logger.debug("", dbe);
             buf = null;
             tbuf = null;
             body = null;
             header = null;
             throw dbe;
-        } catch (RuntimeException exRe) { // this really smells badly!
-            logger.debug("", exRe);
-            buf = null;
-            tbuf = null;
-            body = null;
-            header = null;
-            throw exRe;
         }
+
         logger.debug("=> {}", m);
         buf = null;
         tbuf = null;
